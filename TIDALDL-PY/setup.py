@@ -14,6 +14,6 @@ setup(
     include_package_data=False,
     platforms="any",
     install_requires=["aigpy>=2022.01.20.1", "requests>=2.22.0",
-                      "pycryptodome", "pydub", "prettytable", "lyricsgenius"],
+                      "pycryptodome", "pydub", "prettytable", "lyricsgenius", "ffmpeg-python"],
     entry_points={'console_scripts': ['tidal-dl = tidal_dl:main', ]}
 )

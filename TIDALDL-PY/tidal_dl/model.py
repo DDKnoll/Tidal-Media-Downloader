@@ -17,6 +17,7 @@ class StreamUrl(ModelBase):
     codec = None
     encryptionKey = None
     soundQuality = None
+    dashManifest = None
 
 
 class VideoStreamUrl(ModelBase):

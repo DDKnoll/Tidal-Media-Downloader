@@ -366,6 +366,14 @@ class TidalAPI(object):
             ret.encryptionKey = manifest['keyId'] if 'keyId' in manifest else ""
             ret.url = manifest['urls'][0]
             return "", ret
+        if resp.manifestMimeType == "application/dash+xml":
+            ret = StreamUrl()
+            ret.trackid = resp.trackid
+            ret.soundQuality = resp.audioQuality
+            ret.dashManifest = base64.b64decode(resp.manifest).decode('utf-8')
+            # The next line is just so that the correct file extension gets written
+            ret.url = "test.flac" if quality == AudioQuality.Master else ''
+            return "", ret
         return "Can't get the streamUrl, type is " + resp.manifestMimeType, None
 
     def getVideoStreamUrl(self, id, quality: VideoQuality):

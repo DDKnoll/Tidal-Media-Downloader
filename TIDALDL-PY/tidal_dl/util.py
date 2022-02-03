@@ -23,10 +23,14 @@ from tidal_dl.decryption import decrypt_file
 from tidal_dl.decryption import decrypt_security_token
 from tidal_dl.enums import Type, AudioQuality
 from tidal_dl.lang.language import initLang
-from tidal_dl.model import Track, Video, Lyrics, Mix, Album
+from tidal_dl.model import Track, Video, StreamUrl, Lyrics, Mix, Album
 from tidal_dl.printf import Printf
 from tidal_dl.settings import Settings, TokenSettings, getLogPath
 from tidal_dl.tidal import TidalAPI
+from aigpy.pathHelper import getDirName
+
+import ffmpeg
+
 
 TOKEN = TokenSettings.read()
 CONF = Settings.read()
@@ -53,6 +57,8 @@ def __getExtension__(url):
         return '.flac'
     if '.mp4' in url:
         return '.mp4'
+    if '.mpd' in url:
+        return '.mpd'
     return '.m4a'
 
 
@@ -168,7 +174,7 @@ def getPlaylistPath(conf: Settings, playlist):
     return base + name + '/'
 
 
-def getTrackPath(conf: Settings, track, stream, album=None, playlist=None):
+def getTrackPath(conf: Settings, track, streamUrl, album=None, playlist=None):
     base = './'
     if album is not None:
         base = getAlbumPath(conf, album) + '/'
@@ -196,7 +202,7 @@ def getTrackPath(conf: Settings, track, stream, album=None, playlist=None):
     if album.releaseDate is not None:
         year = aigpy.string.getSubOnlyEnd(album.releaseDate, '-')
     # extension
-    extension = __getExtension__(stream.url)
+    extension = __getExtension__(streamUrl)
     retpath = conf.trackFileFormat
     if retpath is None or len(retpath) <= 0:
         retpath = Settings.getDefaultTrackFileFormat()
@@ -350,25 +356,38 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
             Printf.track(track, stream)
         if userProgress is not None:
             userProgress.updateStream(stream)
-        path = getTrackPath(CONF, track, stream, album, playlist)
-
+        path = getTrackPath(CONF, track, stream.url, album, playlist)
         # check exist
         if skip(path, stream.url):
             Printf.success(aigpy.path.getFileName(path) + " (skip:already exists!)")
             return True, ""
 
-        # download
-        logging.info("[DL Track] name=" + aigpy.path.getFileName(path) + "\nurl=" + stream.url)
-        tool = aigpy.download.DownloadTool(path + '.part', [stream.url])
-        tool.setUserProgress(userProgress)
-        tool.setPartSize(partSize)
-        check, err = tool.start(CONF.showProgress)
-        if not check:
-            Printf.err("Download failed! " + aigpy.path.getFileName(path) + ' (' + str(err) + ')')
-            return False, str(err)
+        if stream.dashManifest != None:
+            mpdPath = getTrackPath(CONF, track, 'test.mpd', album, playlist)
+            dir = getDirName(path)
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            with open(mpdPath, 'w') as mpdFile:
+                mpdFile.write(stream.dashManifest)
+            logging.info("[DL Track] name=" + aigpy.path.getFileName(path) + "\nmanifest=" + mpdPath)
+            process = ffmpeg.input(mpdPath).output(path).run_async(quiet=True)
+            process.wait()
+            os.remove(mpdPath)
 
-        # encrypted -> decrypt and remove encrypted file
-        encrypted(stream, path + '.part', path)
+
+        else:
+            # download
+            logging.info("[DL Track] name=" + aigpy.path.getFileName(path) + "\nurl=" + stream.url)
+            tool = aigpy.download.DownloadTool(path + '.part', [stream.url])
+            tool.setUserProgress(userProgress)
+            tool.setPartSize(partSize)
+            check, err = tool.start(CONF.showProgress)
+            if not check:
+                Printf.err("Download failed! " + aigpy.path.getFileName(path) + ' (' + str(err) + ')')
+                return False, str(err)
+
+            # encrypted -> decrypt and remove encrypted file
+            encrypted(stream, path + '.part', path)
 
         # convert
         path = convert(path, stream)

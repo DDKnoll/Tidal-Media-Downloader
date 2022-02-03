@@ -370,8 +370,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
             with open(mpdPath, 'w') as mpdFile:
                 mpdFile.write(stream.dashManifest)
             logging.info("[DL Track] name=" + aigpy.path.getFileName(path) + "\nmanifest=" + mpdPath)
-            process = ffmpeg.input(mpdPath).output(path).run_async(quiet=True)
-            process.wait()
+            process = ffmpeg.input(mpdPath, hide_banner=None, y=None).output(path, acodec='copy', loglevel='error').run();
             os.remove(mpdPath)
 
 

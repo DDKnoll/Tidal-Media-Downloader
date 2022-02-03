@@ -371,6 +371,7 @@ class TidalAPI(object):
             ret.trackid = resp.trackid
             ret.soundQuality = resp.audioQuality
             ret.dashManifest = base64.b64decode(resp.manifest).decode('utf-8')
+            ret.codec = ''
             # The next line is just so that the correct file extension gets written
             ret.url = "test.flac" if quality == AudioQuality.Master else ''
             return "", ret
